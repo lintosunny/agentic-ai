@@ -198,7 +198,17 @@ A project manager helps you:
 * Manage project metadata
 
 
-## Install uv
+## Virtual Environments
+
+### Why do we need Virtual Environments?
+
+Different projects require different package versions.
+
+For example, if project A needs pandas==2.0, but Project B needs pandas==2.3
+
+A virtual environment isolates each project's dependencies.
+
+### 0. Install uv
 
 Open Git Bash
 
@@ -213,17 +223,6 @@ Verify
 ```bash
 uv --version
 ```
-
-
-## Virtual Environments
-
-### Why do we need Virtual Environments?
-
-Different projects require different package versions.
-
-For example, if project A needs pandas==2.0, but Project B needs pandas==2.3
-
-A virtual environment isolates each project's dependencies.
 
 ### 1. Create a New Project
 
