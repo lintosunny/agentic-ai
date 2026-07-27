@@ -1,3 +1,7 @@
 test.py
 .env
 .venv
+
+# UV
+.python-version
+uv.lock
