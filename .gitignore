@@ -3,5 +3,6 @@ test.py
 .venv
 
 # UV
-.python-version
 uv.lock
+
+__pycache__
