@@ -145,49 +145,42 @@ print(result["messages"][-1].content)
 # output -> Tickets are refundable up to 2 hours before showtime. No refunds after that.
 
 # Dynamic Tool Loading & Calling
-from langchain.agents import create_agent
+# Tools available to the agent is modified at runtime rather than defined all upfront
 from langchain.agents.middleware import wrap_model_call, ModelRequest, ModelResponse
-from langchain.tools import tool
-
+from typing import Callable
 
 @tool
 def standard_booking(movie_title: str) -> str:
-    """Book a standard movie seat."""
+    """Book a standard seat."""
     return f"Standard seat booked for {movie_title}."
-
 
 @tool
 def vip_lounge_booking(movie_title: str) -> str:
-    """Book a VIP lounge seat."""
+    """Book a VIP lounge seat with premium service. VIP members only."""
     return f"VIP lounge seat booked for {movie_title}."
 
-
 @wrap_model_call
-def dynamic_tools(request: ModelRequest, handler) -> ModelResponse:
-    """Dynamically select tools based on the user's request."""
-
-    message = request.messages[-1].content.lower()
-
-    if "vip" in message:
-        request = request.override(
-            tools=[vip_lounge_booking]
-        )
-    else:
-        request = request.override(
-            tools=[standard_booking]
-        )
-
+def gate_vip_tools(request: ModelRequest, handler: Callable[[ModelRequest], ModelResponse]) -> ModelResponse:
+    """Only expose vip_lounge_booking to VIP members."""
+    is_vip = request.state.get("is_vip_member", False)
+    if not is_vip:
+        allowed = [t for t in request.tools if t.name != "vip_lounge_booking"]
+        request = request.override(tools=allowed)
     return handler(request)
 
-
-agent = create_agent(
+gated_agent = create_agent(
     model="openai:gpt-5-mini",
     tools=[standard_booking, vip_lounge_booking],
-    middleware=[dynamic_tools],
+    #middleware=[gate_vip_tools],
 )
 
-result = agent.invoke({
-    "messages": [
-        ("user", "Book me a VIP lounge seat for Dune")
-    ]
-})
+result_regular = gated_agent.invoke({"messages": [("user", "Book me a VIP lounge seat for Dune?")]})
+print("Regular member result:", result_regular["messages"][-1].content)
+
+result_vip = gated_agent.invoke(
+    {"messages": [("user", "Book me a VIP lounge seat for Dune")], "is_vip_member": True}
+)
+print("VIP member result:", result_vip["messages"][-1].content)
+print()
+print("Same code, same query -- only the 'is_vip_member' flag differed. The model literally")
+print("could not choose vip_lounge_booking in the first case -- it wasn't on its menu at all.")
