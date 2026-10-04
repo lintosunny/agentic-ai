@@ -146,6 +146,7 @@ print(result["messages"][-1].content)
 
 # Dynamic Tool Loading & Calling
 # Tools available to the agent is modified at runtime rather than defined all upfront
+# state based tools, store based tools, 
 from langchain.agents.middleware import wrap_model_call, ModelRequest, ModelResponse
 from typing import Callable
 
@@ -171,7 +172,7 @@ def gate_vip_tools(request: ModelRequest, handler: Callable[[ModelRequest], Mode
 gated_agent = create_agent(
     model="openai:gpt-5-mini",
     tools=[standard_booking, vip_lounge_booking],
-    #middleware=[gate_vip_tools],
+    middleware=[gate_vip_tools],
 )
 
 result_regular = gated_agent.invoke({"messages": [("user", "Book me a VIP lounge seat for Dune?")]})
@@ -184,3 +185,44 @@ print("VIP member result:", result_vip["messages"][-1].content)
 print()
 print("Same code, same query -- only the 'is_vip_member' flag differed. The model literally")
 print("could not choose vip_lounge_booking in the first case -- it wasn't on its menu at all.")
+
+
+
+# How can we give state as an input
+from langchain.agents import create_agent, AgentState
+
+class GatedState(AgentState):
+    is_vip_member: bool 
+
+gated_agent_with_middleware = create_agent(
+    model="openai:gpt-5-mini",
+    tools=[standard_booking, vip_lounge_booking],
+    middleware=[gate_vip_tools],
+    state_schema=GatedState
+)
+
+result_with_state_input = gated_agent_with_middleware.invoke(
+    {"messages": [("user", "Book me a VIP lounge ticket for Dune")], "is_vip_member": False} 
+)
+
+
+
+# Headless tools
+# will be running at users end. examples are clipboard, location, latency, payments, etc.
+
+
+# InMomorySaver or Checkpointing
+# one usecase agent will remember you
+from langgraph.checkpoint.memory import InMemorySaver
+
+checkpointer = InMemorySaver()
+config = {"configurable": {"thread_id": "Lintos messages"}}
+aget_stateful = create_agent(
+    model="openai:gpt-5-mini",
+    system_prompt="you are a movie booking assistant",
+    checkpointer=checkpointer
+)
+
+aget_stateful.invoke({"messages": [("user", "I am Linto")]}, config=config)
+aget_stateful.invoke({"messages": [("user", "Who am I")]}, config=config)
+# now it will remember my name
